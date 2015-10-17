@@ -104,6 +104,12 @@ def get_timetable(start, end, occupy_list, slic):
           break
         item[0] += slic
   else:
-    return available_timeslot
+    pass
 
-  return available_timeslot
+  # convert second time into json string
+  _json_available_timeslot = []
+  if len(available_timeslot):
+    _json_available_timeslot = map(lambda x: JSONEncoder().encode(x), available_timeslot)
+      
+  print _json_available_timeslot
+  return _json_available_timeslot
