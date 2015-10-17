@@ -11,7 +11,9 @@ _stru='%Y-%m-%d %H:%M'
 
 def _getstrutstr(area):
   '''
-  convert seconds to timestr 
+  convert seconds to struct time str
+  args: second list like [xxxxxxxx, ccccccc]
+  return: dict like {"start":"","end":""}
   '''
   _areastr = {}
   _areastr['start'] = strftime(_stru, localtime(area[0]))
@@ -21,66 +23,87 @@ def _getstrutstr(area):
 def _timetosec(timestr):
   '''
   convert timestr to seconds
+  args: struct time json string like "{'start':'', 'end':''}"
+  return: second list like [xxxxxxx, cccccccc]
   '''
-  z = JSONDecoder().decode(timestr[0])
+  z = JSONDecoder().decode(timestr)
   _start = mktime(strptime(z['start'], _stru))
   _end = mktime(strptime(z['end'], _stru))
   _area = [_start, _end]
   return _area
 
 def _isinarea(timepoint,timearea):
+  '''
+  discrimenate whether a timepoint in period of time
+  args: timepoint be discrimenated in second format like xxxxxxx
+        timearea discrimenated in secomd list format like [xxxxxxx, ccccccc]
+  return: True / False (timepoint in / out timearea)
+  '''
   if (timepoint>=timearea[0]) and (timearea[1]>=timepoint):
     return True
   else:
     return False
 
-def _isoutarea(timepoint,timearea):
-  if (timepoint<=timearea[0]) or (timearea[1]<=timepoint):
-    return True
-  else:
-    return False
-
-def _getfreetime(timearea, busyarea, splitsec):
-  '''
-  generator that judge whether an timearea could be return.
-  of course the main judging logic is in this part
-  '''
-  _free_time_s = timearea[0]
-  _free_time_e = timearea[0]+splitsec
-  while _isinarea(_free_time_e, timearea):
-    _areanow = [_free_time_s, _free_time_e]
-    if _isoutarea(busyarea[0]+1, _areanow) and _isoutarea(busyarea[1]-1, _areanow):
-      if _isoutarea(_free_time_s, busyarea) and _isoutarea(_free_time_e, busyarea):
-        yield _areanow
-    else:
-      pass
-    _free_time_s += splitsec
-    _free_time_e += splitsec
-
-def get_timetable(start, end, occupy_list, slice):
+def get_timetable(start, end, occupy_list, slic):
+  # parament validate
   available_timeslot = []
   if not start or not end:
     print 'Strat or end time not specified.'
     return available_timeslot
 
+  # convert start and end time into seconds
   try:
+    print start, end
     _start_time = mktime(strptime(start, _stru))
     _end_time = mktime(strptime(end, _stru))
   except ValueError:
-    print 'Start or end time string format is not crrenct.'
+    print 'Start or end time string format is not correct.'
     return available_timeslot
 
+  # validate whether endtime is latter then starttime provid by arguments 
   if _start_time >= _end_time:
     print 'Start time is after end time.'
     return available_timeslot
 
-  _outservertime = _timetosec(occupy_list)
-  
-  a = _getfreetime([_start_time, _end_time], _outservertime, slice)
-  while 1:
-    try:
-      available_timeslot.append(JSONEncoder().encode(_getstrutstr(a.next())))
-    except StopIteration:
+  # convert occupy list into seconds and sorted it
+  _occupy_time_slot = []
+  try:
+    for item in occupy_list:
+      _start, _end = _timetosec(item)
+      _occupy_time_slot.append([_start, _end])
+  except ValueError:
+    print 'occupy_list`s time string format is not correct.'
+    return available_timeslot
+
+  # start end time must insure append to the list[-1] otherwise will have bug
+  _occupy_time_slot.append([_start_time, _start_time])
+  _occupy_time_slot.append([_end_time, _end_time])
+  _sorted_occupy_list = sorted(_occupy_time_slot, key=lambda x: x[0])
+
+  # get useable time slot by parse the occupy list
+  _useable_time_slot = []
+  for i in range(len(_sorted_occupy_list)-1):
+    _pre_end = _sorted_occupy_list[i][1]
+    _next_start = _sorted_occupy_list[i+1][0]
+    if _isinarea(_pre_end, [_start_time, _end_time]):
+      if _pre_end <= _next_start:
+        _useable_time_slot.append([_pre_end, _next_start])      
+      else:
+        _sorted_occupy_list[i+1][1] = _pre_end
+        continue
+    else:
       break
+
+  # select time slot from useable time fragment list
+  if len(_useable_time_slot):
+    for item in _useable_time_slot:
+      while 1:
+        if item[0] + slic <= item[1]:
+          available_timeslot.append(_getstrutstr([item[0], item[0] + slic]))
+        else:
+          break
+        item[0] += slic
+  else:
+    return available_timeslot
+
   return available_timeslot
-    
