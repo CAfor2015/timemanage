@@ -1,10 +1,6 @@
 #!/urs/bin/env python
 # -*- coding: utf-8 -*-
 
-'''
-__author__='zhenyu'
-'''
-
 import unittest
 from timesplit import get_timetable
 
