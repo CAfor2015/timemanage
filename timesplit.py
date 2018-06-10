@@ -1,9 +1,6 @@
 #!/urs/bin/env python
 # -*- coding: utf-8 -*-
 
-__author__='wangzhenyu'
-
-
 from json import JSONDecoder, JSONEncoder
 from time import localtime, strftime, strptime, mktime
 
